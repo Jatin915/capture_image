@@ -1,88 +1,52 @@
 import React, { useRef, useState } from "react";
 import Webcam from "react-webcam";
-import Jatin from "../assets/jatin.jpeg";
-
-// Dummy student data
-const students = [
-  {
-    id: 1,
-    name: "Jatin Gupta",
-    photo: {Jatin} // local image path
-  }
-];
 
 const CameraCapture = () => {
-  const [selectedStudent, setSelectedStudent] = useState(students[0]); // default student
   const webcamRef = useRef(null);
   const [capturedImage, setCapturedImage] = useState(null);
 
-  // Capture image
   const capture = () => {
     const imageSrc = webcamRef.current.getScreenshot();
     setCapturedImage(imageSrc);
   };
 
-   const handleSubmit = () => {
-    fetch("http://127.0.0.1:8000/attendance", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        studentId: selectedStudent.id,
-        image: capturedImage
-      })
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          alert(data.message);
-        } else {
-          alert("Error: " + data.message);
-        }
-      })
-      .catch((err) => console.error(err));
+  const handleSubmit = async () => {
+    if (!capturedImage) return alert("Capture an image first!");
+
+    // Convert base64 to Blob/File
+    const byteString = atob(capturedImage.split(",")[1]);
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i);
+    }
+    const blob = new Blob([ab], { type: "image/jpeg" });
+    const file = new File([blob], "capture.jpg", { type: "image/jpeg" });
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("studentId", 123); // Example student ID
+
+    try {
+      const res = await fetch("http://127.0.0.1:8000/attendance", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      console.log(data);
+      alert(data.message);
+    } catch (err) {
+      console.error(err);
+      alert("Error sending image to backend!");
+    }
   };
 
-
   return (
-    <div style={{ textAlign: "center", marginTop: "20px" }}>
-      {/* Student Name */}
-      <h2>{selectedStudent.name}</h2>
-
-      {/* Show camera if image not captured */}
-      {!capturedImage ? (
-        <>
-          <Webcam
-            ref={webcamRef}
-            audio={false}
-            screenshotFormat="image/jpeg"
-            mirrored={true} // Selfie mode
-            style={{ width: "300px", height: "250px", border: "2px solid black" }}
-          />
-          <br />
-          <button onClick={capture} style={{ marginTop: "10px" }}>
-            Capture
-          </button>
-        </>
-      ) : (
-        <>
-          {/* Preview Image */}
-          <img
-            src={capturedImage}
-            alt="captured"
-            style={{ width: "300px", height: "250px", border: "2px solid green" }}
-          />
-          <br />
-          <button
-            onClick={() => setCapturedImage(null)}
-            style={{ margin: "10px" }}
-          >
-            Retake
-          </button>
-          <button onClick={handleSubmit}>Submit</button>
-        </>
-      )}
+    <div>
+      <Webcam audio={false} ref={webcamRef} screenshotFormat="image/jpeg" />
+      <button onClick={capture}>Capture</button>
+      {capturedImage && <img src={capturedImage} alt="Captured" width={200} />}
+      <button onClick={handleSubmit}>Submit Attendance</button>
     </div>
   );
 };

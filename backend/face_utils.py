@@ -1,7 +1,7 @@
 import face_recognition
 import os
 
-KNOWN_FACES_DIR = "./known_faces/"
+KNOWN_FACES_DIR = "./backend/known_faces/"
 
 def load_known_faces():
     known_encodings = []

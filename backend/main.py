@@ -1,62 +1,47 @@
-from fastapi import FastAPI, Request
+# backend/main.py
+from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-import base64
+import shutil
 import os
-import uuid
-from face_utils import recognize_face
+
+from backend.face_utils import recognize_face
+from backend.liveness import check_liveness  # the blink-based liveness module
 
 app = FastAPI()
 
-# Allow React frontend
+# CORS settings to allow your frontend (Vite/React)
+origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # you can restrict to ["http://localhost:5173"] if using Vite
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-UPLOAD_DIR = "backend/uploads"
+UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-
-@app.get("/")
-def home():
-    return {"message": "Face Recognition API Running!"}
-
-
 @app.post("/attendance")
-async def mark_attendance(request: Request):
-    data = await request.json()
-    student_id = data.get("studentId")
-    image_data = data.get("image")  # base64 string
+async def mark_attendance(file: UploadFile = File(...)):
+    # Save uploaded file
+    file_path = os.path.join(UPLOAD_DIR, file.filename)
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
 
-    if not image_data:
-        return {"success": False, "message": "No image received"}
+    # Liveness check first
+    is_live = check_liveness()
+    if not is_live:
+        return {"success": False, "message": "Liveness check failed. Please blink to verify."}
 
-    # Remove base64 prefix (data:image/jpeg;base64,...)
-    if image_data.startswith("data:image"):
-        image_data = image_data.split(",")[1]
-
-    # Decode and save temporary image
-    img_bytes = base64.b64decode(image_data)
-    file_name = f"{uuid.uuid4()}.jpg"
-    file_path = os.path.join(UPLOAD_DIR, file_name)
-
-    with open(file_path, "wb") as f:
-        f.write(img_bytes)
-
-    # Run recognition
-    result = recognize_face(file_path)
-
-    # Clean up
-    os.remove(file_path)
-
-    if result.get("success"):
-        return {
-            "success": True,
-            "message": f"Attendance marked for {result['name']}",
-            "studentId": student_id
-        }
+    # Face recognition
+    recognized_name = recognize_face(file_path)
+    if recognized_name:
+        # Here you can implement storing attendance in DB or JSON
+        return {"success": True, "message": f"Attendance marked for {recognized_name}"}
     else:
-        return {"success": False, "message": result.get("message", "Face not recognized")}
+        return {"success": False, "message": "Face not recognized."}
