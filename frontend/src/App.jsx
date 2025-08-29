@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import CameraCapture from './pages/CameraCapture'
+import CameraCapture from './components/CameraCapture'
 
 function App() {
 

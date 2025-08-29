@@ -22,13 +22,8 @@ const CameraCapture = () => {
     setCapturedImage(imageSrc);
   };
 
-  // Submit image
-  const handleSubmit = () => {
-    console.log("Submitting image for:", selectedStudent.name);
-    console.log("Captured Image:", capturedImage);
-
-    // Example: send to backend
-    fetch("http://localhost:5000/attendance", {
+   const handleSubmit = () => {
+    fetch("http://127.0.0.1:8000/attendance", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -40,10 +35,15 @@ const CameraCapture = () => {
     })
       .then((res) => res.json())
       .then((data) => {
-        alert("Attendance marked for " + selectedStudent.name);
+        if (data.success) {
+          alert(data.message);
+        } else {
+          alert("Error: " + data.message);
+        }
       })
       .catch((err) => console.error(err));
   };
+
 
   return (
     <div style={{ textAlign: "center", marginTop: "20px" }}>

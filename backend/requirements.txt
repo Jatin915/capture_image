@@ -1,5 +1,5 @@
 flask
 flask-cors
-deepface
+face-recognition
 opencv-python
 numpy
